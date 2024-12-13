@@ -1,0 +1,58 @@
+import os
+import sys
+import pefile
+import lief
+
+def analyze_pe(file_path):
+    """
+    Аналізує PE-файл та виводить список імпортованих бібліотек і функцій.
+    """
+    print("Аналіз PE-файлу...")
+    pe = pefile.PE(file_path)
+    if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+        for entry in pe.DIRECTORY_ENTRY_IMPORT:
+            print(f"Бібліотека: {entry.dll.decode()}")
+            for imp in entry.imports:
+                print(f"  Функція: {imp.name.decode() if imp.name else 'ORDINAL ' + str(imp.ordinal)}")
+    else:
+        print("Імпорти відсутні.")
+    pe.close()
+
+def analyze_elf(file_path):
+    """
+    Аналізує ELF-файл та виводить список імпортованих бібліотек і функцій.
+    """
+    print("Аналіз ELF-файлу...")
+    binary = lief.parse(file_path)
+    if binary:
+        print("Імпортовані бібліотеки:")
+        for library in binary.libraries:
+            print(f"  {library}")
+        
+        print("\nІмпортовані функції:")
+        for symbol in binary.imported_functions:
+            print(f"  {symbol}")
+    else:
+        print("Не вдалося проаналізувати ELF-файл.")
+
+if name == "main":
+    if len(sys.argv) != 2:
+        print("Використання: python analyze_file.py <шлях_до_файлу>")
+        sys.exit(1)
+
+    file_path = sys.argv[1]
+
+    if not os.path.isfile(file_path):
+        print(f"Файл не знайдено: {file_path}")
+        sys.exit(1)
+
+    # Визначення типу файлу
+    with open(file_path, 'rb') as f:
+        magic = f.read(4)
+
+    if magic.startswith(b'MZ'):
+        analyze_pe(file_path)
+    elif magic.startswith(b'\x7fELF'):
+        analyze_elf(file_path)
+    else:
+        print("Файл не є ні PE, ні ELF форматом.")
